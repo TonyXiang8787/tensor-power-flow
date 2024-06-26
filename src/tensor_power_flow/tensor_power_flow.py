@@ -5,11 +5,13 @@ from .data_checker import check_input
 import scipy.sparse as sp
 import scipy.sparse.csgraph as csg
 from typing import Optional
+from . import BASE_POWER
 
 
 class TensorPowerFlow:
     _input_data: SingleDataset
     _model: PowerGridModel
+    _u_rated: float
     _n_node: int
     _n_line: int
     _n_load: int
@@ -25,6 +27,7 @@ class TensorPowerFlow:
         self._input_data = input_data
         self._model = PowerGridModel(input_data, system_frequency)
         check_input(input_data)
+        self._u_rated = input_data["node"]["u_rated"][0]
         self._n_node = len(input_data["node"])
         self._n_line = len(input_data["line"])
         self._n_load = len(input_data["sym_load"])
