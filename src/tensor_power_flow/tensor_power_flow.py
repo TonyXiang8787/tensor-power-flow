@@ -20,10 +20,10 @@ class TensorPowerFlow:
         check_input(input_data)
         self._n_node = len(input_data["node"])
         self._node_reorder = np.zeros(self._n_node, dtype=np.int64)
-        self._line_node_from = self._model.get_indexer("line", input_data["line"]["from_node"])
-        self._line_node_to = self._model.get_indexer("line", input_data["line"]["to_node"])
-        self._load_node = self._model.get_indexer("sym_load", input_data["sym_load"]["node"])
-        self._source_node = self._model.get_indexer("source", input_data["source"]["node"])[0]
+        self._line_node_from = self._model.get_indexer("node", input_data["line"]["from_node"])
+        self._line_node_to = self._model.get_indexer("node", input_data["line"]["to_node"])
+        self._load_node = self._model.get_indexer("node", input_data["sym_load"]["node"])
+        self._source_node = self._model.get_indexer("node", input_data["source"]["node"])[0]
         self._graph_reorder()
 
     def _graph_reorder(self):
