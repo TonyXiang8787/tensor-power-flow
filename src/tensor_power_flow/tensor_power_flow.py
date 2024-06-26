@@ -43,7 +43,7 @@ class TensorPowerFlow:
             (np.ones(self._n_line * 2), (edge_i, edge_j)), shape=(self._n_node, self._n_node)
         )
         reordered_node = csg.depth_first_order(
-            connection_array, self._source_node, directed=False, return_predecessors=False
+            connection_array, i_start=self._source_node, directed=False, return_predecessors=False
         )
         if len(reordered_node) != self._n_node:
             raise ValueError("The graph is not connected!")
@@ -55,4 +55,5 @@ class TensorPowerFlow:
         self._line_node_to = self._node_org_to_reordered[self._line_node_to]
         self._load_node = self._node_org_to_reordered[self._load_node]
         self._source_node = self._node_org_to_reordered[self._source_node]
+        assert self._source_node == self._n_node - 1
         self._node_reordered = True
