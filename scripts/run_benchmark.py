@@ -67,8 +67,11 @@ def get_max_diff(tpf_result, pgm_result):
 
 
 if __name__ == "__main__":
+    # pre compile
     run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=False)
-    run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True)
-
     run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=False, threading=4)
+
+    run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True)
+    run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True)
+    run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True, threading=4)
     run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True, threading=4)
