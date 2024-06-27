@@ -7,7 +7,7 @@ from tensor_power_flow import TensorPowerFlow
 from tensor_power_flow.ficional_grid_generator import generate_fictional_grid
 
 
-def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = False):
+def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = False, threading: int = -1):
     cable_length_km_min = 0.8
     cable_length_km_max = 1.2
     load_p_w_max = 0.4e6 * 1.2
@@ -32,7 +32,7 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
 
     start_time = time.time()
     tpf = TensorPowerFlow(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
-    tpf_result = tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"])
+    tpf_result = tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"], threading=threading)
     end_time = time.time()
     tpf_time = end_time - start_time
 
@@ -42,6 +42,7 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         update_data=fictional_dataset["pgm_update_dataset"],
         output_component_types={"node"},
         calculation_method=CalculationMethod.iterative_current,
+        threading=threading,
     )
     end_time = time.time()
     pgm_time = end_time - start_time
@@ -49,9 +50,14 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     max_diff = get_max_diff(tpf_result, pgm_result)
 
     if print_result:
+        print("Benchmark result:")
+        print(f"Total number of nodes: {n_node_per_feeder * n_feeder}")
+        print(f"Number of steps: {n_step}")
+        print(f"Threading: {threading}")
         print(f"Max diff: {max_diff}")
         print(f"TPF time: {tpf_time}")
         print(f"PGM time: {pgm_time}")
+        print("\n\n")
 
 
 def get_max_diff(tpf_result, pgm_result):
@@ -62,4 +68,7 @@ def get_max_diff(tpf_result, pgm_result):
 
 if __name__ == "__main__":
     run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=False)
-    run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10000, print_result=True)
+    run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True)
+
+    run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=False, threading=4)
+    run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True, threading=4)

@@ -1,5 +1,6 @@
 from typing import Optional
 
+import numba
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.csgraph as csg
@@ -9,7 +10,15 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
-from .numba_functions import iterate_and_compare, set_load_pu, set_rhs, solve_rhs_inplace
+from .numba_functions import (
+    iterate_and_compare_parallel,
+    iterate_and_compare_seq,
+    set_load_pu,
+    set_rhs_parallel,
+    set_rhs_seq,
+    solve_rhs_inplace_parallel,
+    solve_rhs_inplace_seq,
+)
 
 
 class TensorPowerFlow:
@@ -124,7 +133,7 @@ class TensorPowerFlow:
         self._y_ref = y_source
 
     def calculate_power_flow(
-        self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8
+        self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8, threading=-1
     ):
         check_update(self._input_data, update_data)
         if self._node_reordered_to_org is None:
@@ -135,6 +144,15 @@ class TensorPowerFlow:
             self._factorize_matrix()
         load_profile = update_data["sym_load"]
         n_steps = load_profile.shape[0]
+
+        if threading == -1 or threading == 1:
+            use_parallel = False
+        elif threading > 1:
+            numba.set_num_threads(threading)
+            use_parallel = True
+        else:
+            numba.set_num_threads(numba.config.NUMBA_NUM_THREADS)
+            use_parallel = True
 
         # initialize
         # load_pu
@@ -149,17 +167,30 @@ class TensorPowerFlow:
 
         # iterate
         for _ in range(max_iteration):
-            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
-            solve_rhs_inplace(
-                indptr_l=self._l_matrix.indptr,
-                indices_l=self._l_matrix.indices,
-                data_l=self._l_matrix.data,
-                indptr_u=self._u_matrix.indptr,
-                indices_u=self._u_matrix.indices,
-                data_u=self._u_matrix.data,
-                rhs=rhs,
-            )
-            max_diff = iterate_and_compare(u, rhs)
+            if use_parallel:
+                set_rhs_parallel(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
+                solve_rhs_inplace_parallel(
+                    indptr_l=self._l_matrix.indptr,
+                    indices_l=self._l_matrix.indices,
+                    data_l=self._l_matrix.data,
+                    indptr_u=self._u_matrix.indptr,
+                    indices_u=self._u_matrix.indices,
+                    data_u=self._u_matrix.data,
+                    rhs=rhs,
+                )
+                max_diff = iterate_and_compare_parallel(u, rhs)
+            else:
+                set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
+                solve_rhs_inplace_seq(
+                    indptr_l=self._l_matrix.indptr,
+                    indices_l=self._l_matrix.indices,
+                    data_l=self._l_matrix.data,
+                    indptr_u=self._u_matrix.indptr,
+                    indices_u=self._u_matrix.indices,
+                    data_u=self._u_matrix.data,
+                    rhs=rhs,
+                )
+                max_diff = iterate_and_compare_seq(u, rhs)
             if max_diff < error_tolerance:
                 break
         else:

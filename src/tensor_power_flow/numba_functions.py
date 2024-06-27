@@ -14,8 +14,7 @@ def set_load_pu(load_pu: np.ndarray, p_array: np.ndarray, q_array: np.ndarray):
     load_pu[...] = (p_array + 1j * q_array) / BASE_POWER
 
 
-@njit
-def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
+def set_rhs_impl(rhs, load_pu, load_type, load_node, u, i_ref):
     rhs[...] = 0.0
     for i in range(len(load_type)):
         node_i = load_node[i]
@@ -30,8 +29,7 @@ def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     rhs[:, -1] += i_ref
 
 
-@njit
-def solve_rhs_inplace(indptr_l, indices_l, data_l, indptr_u, indices_u, data_u, rhs):
+def solve_rhs_inplace_impl(indptr_l, indices_l, data_l, indptr_u, indices_u, data_u, rhs):
     size = rhs.shape[1]
     # forward substitution
     for i in range(size):
@@ -47,8 +45,7 @@ def solve_rhs_inplace(indptr_l, indices_l, data_l, indptr_u, indices_u, data_u, 
         rhs[:, i] /= data_u[index_diag]
 
 
-@njit
-def iterate_and_compare(u, rhs):
+def iterate_and_compare_impl(u, rhs):
     size = u.shape[1]
     max_diff = 0.0
     for i in range(size):
@@ -57,3 +54,12 @@ def iterate_and_compare(u, rhs):
             max_diff = diff
         u[:, i] = rhs[:, i]
     return max_diff
+
+
+set_rhs_seq = njit(set_rhs_impl)
+solve_rhs_inplace_seq = njit(solve_rhs_inplace_impl)
+iterate_and_compare_seq = njit(iterate_and_compare_impl)
+
+set_rhs_parallel = njit(set_rhs_impl, parallel=True)
+solve_rhs_inplace_parallel = njit(solve_rhs_inplace_impl, parallel=True)
+iterate_and_compare_parallel = njit(iterate_and_compare_impl, parallel=True)
