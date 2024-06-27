@@ -9,7 +9,7 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
-from .numba_functions import set_load_pu, set_rhs
+from .numba_functions import set_load_pu, set_rhs, solve_rhs_inplace, iterate_and_compare
 
 
 class TensorPowerFlow:
@@ -31,6 +31,7 @@ class TensorPowerFlow:
     _y_bus: Optional[sp.csc_array] = None
     _l_matrix: Optional[sp.csr_array] = None
     _u_matrix: Optional[sp.csr_array] = None
+    _y_ref: Optional[np.complex128] = None
 
     def __init__(self, input_data: SingleDataset, system_frequency: float):
         self._input_data = input_data
@@ -120,6 +121,7 @@ class TensorPowerFlow:
             raise ValueError("The column permutation is not correct!")
         self._l_matrix = splu.L.tocsr(copy=True)
         self._u_matrix = splu.U.tocsr(copy=True)
+        self._y_ref = y_source
 
     def calculate_power_flow(
         self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8
@@ -140,6 +142,7 @@ class TensorPowerFlow:
         set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])
         # u variable, flat start as u_ref
         u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
+        i_ref = self._y_ref * u_ref
         u = np.full(shape=(n_steps, self._n_node), fill_value=u_ref, dtype=np.complex128, order="F")
         u_abs = np.empty(shape=(n_steps, self._n_node), dtype=np.float64, order="F")
         # rhs variable, empty
@@ -147,7 +150,20 @@ class TensorPowerFlow:
 
         # iterate
         for _ in range(max_iteration):
-            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, u_abs)
-
+            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, u_abs, i_ref)
+            solve_rhs_inplace(
+                indptr_l=self._l_matrix.indptr,
+                indices_l=self._l_matrix.indices,
+                data_l=self._l_matrix.data,
+                indptr_u=self._u_matrix.indptr,
+                indices_u=self._u_matrix.indices,
+                data_u=self._u_matrix.data,
+                rhs=rhs,
+            )
+            max_diff = iterate_and_compare(u, rhs)
+            if max_diff < error_tolerance:
+                break
         else:
-            raise ValueError("The power flow calculation does not converge!")
+            raise ValueError(f"The power flow calculation does not converge! Max diff: {max_diff}")
+
+        return {"node": {"u_pu": np.abs(u), "u_angle": np.angle(u)}}
