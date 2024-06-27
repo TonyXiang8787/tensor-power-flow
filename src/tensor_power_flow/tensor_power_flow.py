@@ -13,6 +13,7 @@ class TensorPowerFlow:
     _system_frequency: float
     _model: PowerGridModel
     _u_rated: float
+    _y_base: float
     _n_node: int
     _n_line: int
     _n_load: int
@@ -30,6 +31,7 @@ class TensorPowerFlow:
         self._model = PowerGridModel(input_data, system_frequency)
         check_input(input_data)
         self._u_rated = input_data["node"]["u_rated"][0]
+        self._y_base = BASE_POWER / (self._u_rated ** 2)
         self._n_node = len(input_data["node"])
         self._n_line = len(input_data["line"])
         self._n_load = len(input_data["sym_load"])
@@ -69,7 +71,7 @@ class TensorPowerFlow:
             * self._input_data["line"]["c1"]
             * (1j + self._input_data["line"]["tan1"])
         )
-        all_y = np.concatenate((y_series, y_shunt, y_shunt), axis=0)
+        all_y = np.concatenate((y_series, y_shunt, y_shunt), axis=0) / self._y_base
         y_branch = sp.dia_array((all_y, 0), shape=(self._n_line * 3, self._n_line * 3))
 
         # incidence matrix
