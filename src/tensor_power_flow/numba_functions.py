@@ -15,16 +15,15 @@ def set_load_pu(load_pu: np.ndarray, p_array: np.ndarray, q_array: np.ndarray):
 
 
 @njit
-def set_rhs(rhs, load_pu, load_type, load_node, u, u_abs, i_ref):
+def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     rhs[...] = 0.0
-    u_abs[...] = np.abs(u)
     for i in range(len(load_type)):
         node_i = load_node[i]
         type_i = load_type[i]
         if type_i == CONST_POWER:
             rhs[:, node_i] -= np.conj(load_pu[:, i] / u[:, node_i])
         elif type_i == CONST_CURRENT:
-            rhs[:, node_i] -= np.conj(load_pu[:, i] * u_abs[:, node_i] / u[:, node_i])
+            rhs[:, node_i] -= np.conj(load_pu[:, i] * np.abs(u[:, node_i]) / u[:, node_i])
         elif type_i == CONST_IMPEDANCE:
             # formula: conj(s * u_abs^2 / u) = conj(s * u * conj(u) / u) = conj(s * conj(u)) = conj(s) * u
             rhs[:, node_i] -= np.conj(load_pu[:, i]) * u[:, node_i]

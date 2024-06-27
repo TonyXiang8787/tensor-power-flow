@@ -144,13 +144,12 @@ class TensorPowerFlow:
         u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
         i_ref = self._y_ref * u_ref
         u = np.full(shape=(n_steps, self._n_node), fill_value=u_ref, dtype=np.complex128, order="F")
-        u_abs = np.empty(shape=(n_steps, self._n_node), dtype=np.float64, order="F")
         # rhs variable, empty
         rhs = np.empty(shape=(n_steps, self._n_node), dtype=np.complex128, order="F")
 
         # iterate
         for _ in range(max_iteration):
-            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, u_abs, i_ref)
+            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
             solve_rhs_inplace(
                 indptr_l=self._l_matrix.indptr,
                 indices_l=self._l_matrix.indices,
