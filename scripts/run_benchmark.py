@@ -27,6 +27,9 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         load_scaling_max=load_scaling_max,
     )
 
+    # fictional_dataset["pgm_update_dataset"]["sym_load"]["p_specified"] = 0.0
+    # fictional_dataset["pgm_update_dataset"]["sym_load"]["q_specified"] = 0.0
+
     tpf = TensorPowerFlow(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
     tpf_result = tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"])
     pgm = PowerGridModel(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)

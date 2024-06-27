@@ -18,10 +18,10 @@ cable_type = "630Al"
 cable_param = {
     "r1": 0.063,
     "x1": 0.103,
-    "c1": 0.0,
-    "c0": 0.0,
-    "tan1": 0.0,
-    "tan0": 0.0,
+    "c1": 0.5e-6,
+    "c0": 0.3e-6,
+    "tan1": 0.003,
+    "tan0": 0.001,
     "i_n": np.nan,
 }
 cable_param_pp = {

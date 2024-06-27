@@ -166,4 +166,6 @@ class TensorPowerFlow:
         else:
             raise ValueError(f"The power flow calculation does not converge! Max diff: {max_diff}")
 
+        # reorder back to original
+        u = u[:, self._node_org_to_reordered]
         return {"node": {"u_pu": np.abs(u), "u_angle": np.angle(u)}}
