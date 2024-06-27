@@ -7,8 +7,9 @@ import scipy.sparse.linalg as splin
 from power_grid_model import PowerGridModel
 from power_grid_model.data_types import BatchDataset, SingleDataset
 
-from . import BASE_POWER
+from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
+from .numba_functions import set_load_pu
 
 
 class TensorPowerFlow:
@@ -26,6 +27,7 @@ class TensorPowerFlow:
     _line_node_to: np.ndarray
     _load_node: np.ndarray
     _source_node: int
+    _load_type: np.ndarray
     _y_bus: Optional[sp.csc_array] = None
     _l_matrix: Optional[sp.csr_array] = None
     _u_matrix: Optional[sp.csr_array] = None
@@ -44,6 +46,7 @@ class TensorPowerFlow:
         self._line_node_to = self._model.get_indexer("node", input_data["line"]["to_node"])
         self._load_node = self._model.get_indexer("node", input_data["sym_load"]["node"])
         self._source_node = self._model.get_indexer("node", input_data["source"]["node"])[0]
+        self._load_type = input_data["sym_load"]["type"].copy()
 
     def _graph_reorder(self):
         edge_i = np.concatenate((self._line_node_from, self._line_node_to), axis=0)
@@ -121,10 +124,15 @@ class TensorPowerFlow:
     def calculate_power_flow(
         self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8
     ):
-        check_update(update_data)
+        check_update(self._input_data, update_data)
         if self._node_reordered_to_org is None:
             self._graph_reorder()
         if self._y_bus is None:
             self._build_y_bus()
         if self._l_matrix is None:
             self._factorize_matrix()
+        load_profile = update_data["sym_load"]
+        n_steps = load_profile.shape[0]
+        # load_pu
+        load_pu = np.empty(shape=(n_steps, self._n_load), dtype=np.complex128, order="F")
+        set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])

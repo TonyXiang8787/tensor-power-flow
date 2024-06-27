@@ -30,14 +30,14 @@ def _check_line(line_array: SingleArray):
         raise ValueError("All lines must be connected")
 
 
-def check_update(update_data: BatchDataset):
+def check_update(input_data: SingleDataset, update_data: BatchDataset):
     all_components = set(update_data.keys())
     if all_components != {"sym_load"}:
         raise ValueError(f"Unsupported components: {all_components - {"sym_load"}} in the update data!")
-    _check_load_update(update_data["sym_load"])
+    _check_load_update(input_data["sym_load"], update_data["sym_load"])
 
 
-def _check_load_update(load_array: DenseBatchArray):
+def _check_load_update(load_input_array: SingleArray, load_array: BatchArray):
     if not isinstance(load_array, np.ndarray):
         raise ValueError("Load update must be a dense batch array!")
     if not np.all(load_array["status"] == -128):
@@ -46,3 +46,5 @@ def _check_load_update(load_array: DenseBatchArray):
         raise ValueError("All load p_specified should be specified in the update data!")
     if np.any(np.isnan(load_array["q_specified"])):
         raise ValueError("All load q_specified should be specified in the update data!")
+    if not np.all(load_input_array["id"].reshape(1, -1) == load_array["id"]):
+        raise ValueError("The order of loads should not be changed in the update data!")
