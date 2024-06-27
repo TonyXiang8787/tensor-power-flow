@@ -3,11 +3,12 @@ from typing import Optional
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.csgraph as csg
+import scipy.sparse.linalg as splin
 from power_grid_model import PowerGridModel
 from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from . import BASE_POWER
-from .data_checker import check_input
+from .data_checker import check_input, check_update
 
 
 class TensorPowerFlow:
@@ -97,11 +98,33 @@ class TensorPowerFlow:
         )
         self._y_bus = (incidence_matrix @ y_branch @ incidence_matrix.T).tocsc(copy=True)
 
+    def _factorize_matrix(self):
+        if self._y_bus is None:
+            self._build_y_bus()
+        matrix = self._y_bus.tocsc(copy=True)
+        source = self._input_data["source"][0]
+        z_source_abs = BASE_POWER / source["sk"]
+        rx_ratio = source["rx_ratio"]
+        x_source = z_source_abs / np.sqrt(1 + rx_ratio**2)
+        r_source = x_source * rx_ratio
+        z_source = r_source + 1j * x_source
+        y_source = 1.0 / z_source
+        matrix.data[-1] += y_source
+        splu: splin.SuperLU = splin.splu(matrix, permc_spec="NATURAL", diag_pivot_thresh=0.0)
+        if not np.all(splu.perm_r == np.arange(self._n_node)):
+            raise ValueError("The row permutation is not correct!")
+        if not np.all(splu.perm_c == np.arange(self._n_node)):
+            raise ValueError("The column permutation is not correct!")
+        self._l_matrix = splu.L.tocsr(copy=True)
+        self._u_matrix = splu.U.tocsr(copy=True)
+
     def calculate_power_flow(
         self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8
     ):
+        check_update(update_data)
         if self._node_reordered_to_org is None:
             self._graph_reorder()
         if self._y_bus is None:
             self._build_y_bus()
-        # diag_pivot_thresh = 0.0
+        if self._l_matrix is None:
+            self._factorize_matrix()
