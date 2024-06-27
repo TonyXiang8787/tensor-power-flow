@@ -9,7 +9,7 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
-from .numba_functions import set_load_pu
+from .numba_functions import set_load_pu, set_rhs
 
 
 class TensorPowerFlow:
@@ -147,7 +147,7 @@ class TensorPowerFlow:
 
         # iterate
         for _ in range(max_iteration):
-            pass
-            
+            set_rhs(rhs, load_pu, self._load_type, self._load_node, u, u_abs)
+
         else:
             raise ValueError("The power flow calculation does not converge!")
