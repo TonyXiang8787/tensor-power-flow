@@ -1,8 +1,10 @@
-from tensor_power_flow.ficional_grid_generator import generate_fictional_grid
-from tensor_power_flow import TensorPowerFlow
-from power_grid_model import PowerGridModel, CalculationMethod
-import numpy as np
 import time
+
+import numpy as np
+from power_grid_model import CalculationMethod, PowerGridModel
+
+from tensor_power_flow import TensorPowerFlow
+from tensor_power_flow.ficional_grid_generator import generate_fictional_grid
 
 
 def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = False):

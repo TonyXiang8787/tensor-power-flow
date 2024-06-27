@@ -1,7 +1,8 @@
-from numba import njit
 import numpy as np
-from .base_power import BASE_POWER
+from numba import njit
 from power_grid_model import LoadGenType
+
+from .base_power import BASE_POWER
 
 CONST_POWER = int(LoadGenType.const_power)
 CONST_CURRENT = int(LoadGenType.const_current)

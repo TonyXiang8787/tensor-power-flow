@@ -9,7 +9,7 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
-from .numba_functions import set_load_pu, set_rhs, solve_rhs_inplace, iterate_and_compare
+from .numba_functions import iterate_and_compare, set_load_pu, set_rhs, solve_rhs_inplace
 
 
 class TensorPowerFlow:
