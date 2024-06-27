@@ -1,11 +1,13 @@
-from power_grid_model import PowerGridModel
-from power_grid_model.data_types import SingleDataset, BatchDataset
+from typing import Optional
+
 import numpy as np
-from .data_checker import check_input
 import scipy.sparse as sp
 import scipy.sparse.csgraph as csg
-from typing import Optional
+from power_grid_model import PowerGridModel
+from power_grid_model.data_types import BatchDataset, SingleDataset
+
 from . import BASE_POWER
+from .data_checker import check_input
 
 
 class TensorPowerFlow:
@@ -17,13 +19,15 @@ class TensorPowerFlow:
     _n_node: int
     _n_line: int
     _n_load: int
-    _node_reordered_to_org: Optional[np.ndarray]
-    _node_org_to_reordered: Optional[np.ndarray]
+    _node_reordered_to_org: Optional[np.ndarray] = None
+    _node_org_to_reordered: Optional[np.ndarray] = None
     _line_node_from: np.ndarray
     _line_node_to: np.ndarray
     _load_node: np.ndarray
     _source_node: int
-    _y_bus: Optional[sp.csc_array]
+    _y_bus: Optional[sp.csc_array] = None
+    _l_matrix: Optional[sp.csr_array] = None
+    _u_matrix: Optional[sp.csr_array] = None
 
     def __init__(self, input_data: SingleDataset, system_frequency: float):
         self._input_data = input_data
@@ -31,12 +35,10 @@ class TensorPowerFlow:
         self._model = PowerGridModel(input_data, system_frequency)
         check_input(input_data)
         self._u_rated = input_data["node"]["u_rated"][0]
-        self._y_base = BASE_POWER / (self._u_rated ** 2)
+        self._y_base = BASE_POWER / (self._u_rated**2)
         self._n_node = len(input_data["node"])
         self._n_line = len(input_data["line"])
         self._n_load = len(input_data["sym_load"])
-        self._node_reordered_to_org = None
-        self._node_org_to_reordered = None
         self._line_node_from = self._model.get_indexer("node", input_data["line"]["from_node"])
         self._line_node_to = self._model.get_indexer("node", input_data["line"]["to_node"])
         self._load_node = self._model.get_indexer("node", input_data["sym_load"]["node"])
