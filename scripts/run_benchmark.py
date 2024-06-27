@@ -32,4 +32,4 @@ fictional_dataset = generate_fictional_grid(
 
 tpf = TensorPowerFlow(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
 
-tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"], max_iteration=100, error_tolerance=1e-6)
+tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"])

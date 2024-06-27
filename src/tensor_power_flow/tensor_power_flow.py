@@ -136,3 +136,8 @@ class TensorPowerFlow:
         # load_pu
         load_pu = np.empty(shape=(n_steps, self._n_load), dtype=np.complex128, order="F")
         set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])
+        # u variable, flat start as u_ref
+        u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
+        u = np.full(shape=(n_steps, self._n_node), fill_value=u_ref, dtype=np.complex128, order="F")
+        # rhs variable, empty
+        rhs = np.empty(shape=(n_steps, self._n_node), dtype=np.complex128, order="F")

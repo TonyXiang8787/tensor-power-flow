@@ -23,6 +23,8 @@ def _check_source(source_array: SingleArray):
         raise ValueError("There must be exactly one source")
     if not np.all(source_array["status"] == 1):
         raise ValueError("All sources must be connected")
+    if not np.all(np.isnan(source_array["u_ref_angle"])):
+        raise ValueError("Source u_ref_angle must be unspecified")
 
 
 def _check_line(line_array: SingleArray):
