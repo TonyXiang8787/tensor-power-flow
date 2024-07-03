@@ -4,24 +4,26 @@ import time
 
 
 @cuda.jit
-def add_conjugate_kernel(ad, bd, cd):
+def add_conjugate_kernel(ad, bd, cd, n_iter: int):
+    step, size = ad.shape
     i = cuda.grid(1)
-    if i < ad.shape[0]:
-        ad[i] += bd[i] + cd[i].conjugate()
+    if i >= step:
+        return
+
+    for _ in range(n_iter):
+        for j in range(size):
+            ad[i, j] += bd[i, j] + cd[i, j].conjugate()
 
 
 def add_conjugate_cuda(b, c, n_iter: int):
     ad = cuda.device_array_like(b)
-    threadsperblock = 32
     bd = cuda.to_device(b)
     cd = cuda.to_device(c)
 
-    step, size = ad.shape
+    threadsperblock = 32
+    step, _ = ad.shape
     blockspergrid = (step + (threadsperblock - 1)) // threadsperblock
-
-    for _ in range(n_iter):
-        for i in range(size):
-            add_conjugate_kernel[blockspergrid, threadsperblock](ad[:, i], bd[:, i], cd[:, i])
+    add_conjugate_kernel[blockspergrid, threadsperblock](ad, bd, cd, n_iter)
     return ad.copy_to_host()
 
 
@@ -61,5 +63,6 @@ def run_test(size, step, n_iter=100, print_output=False):
 
 
 if __name__ == "__main__":
-    run_test(size=10, step=10_000, print_output=False)
+    run_test(size=10, step=10_000, print_output=True)
+    run_test(size=100, step=100_000, print_output=True)
     run_test(size=10, step=1_000_000, print_output=True)
