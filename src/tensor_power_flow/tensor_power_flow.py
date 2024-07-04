@@ -178,7 +178,7 @@ class TensorPowerFlow:
                     data_u=self._u_matrix.data,
                     rhs=rhs,
                 )
-                max_diff = iterate_and_compare_parallel(u, rhs)
+                max_diff2 = iterate_and_compare_parallel(u, rhs)
             else:
                 set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
                 solve_rhs_inplace_seq(
@@ -190,8 +190,8 @@ class TensorPowerFlow:
                     data_u=self._u_matrix.data,
                     rhs=rhs,
                 )
-                max_diff = iterate_and_compare_seq(u, rhs)
-            if max_diff < error_tolerance:
+                max_diff2 = iterate_and_compare_seq(u, rhs)
+            if max_diff2 < error_tolerance**2:
                 break
         else:
             raise ValueError(f"The power flow calculation does not converge! Max diff: {max_diff}")

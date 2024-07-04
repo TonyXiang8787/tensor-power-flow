@@ -47,13 +47,14 @@ def solve_rhs_inplace_impl(indptr_l, indices_l, data_l, indptr_u, indices_u, dat
 
 def iterate_and_compare_impl(u, rhs):
     size = u.shape[1]
-    max_diff = 0.0
+    max_diff2 = 0.0
     for i in range(size):
-        diff = np.max(np.abs(rhs[:, i] - u[:, i]))
-        if diff > max_diff:
-            max_diff = diff
+        diff2_arr = rhs[:, i] - u[:, i]
+        diff2 = np.max(diff2_arr.real**2 + diff2_arr.imag**2)
+        if diff2 > max_diff2:
+            max_diff2 = diff2
         u[:, i] = rhs[:, i]
-    return max_diff
+    return max_diff2
 
 
 set_rhs_seq = njit(set_rhs_impl)
