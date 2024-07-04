@@ -93,3 +93,4 @@ if __name__ == "__main__":
     run_test(size=10, step=10_000, print_output=False)
     run_test(size=100, step=100_000, print_output=True)
     run_test(size=10, step=1_000_000, print_output=True)
+    # abs, .imag, .real, complex(real=, imag=)
