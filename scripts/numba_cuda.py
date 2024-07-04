@@ -1,7 +1,8 @@
+import time
+
+import numba
 import numba.cuda as cuda
 import numpy as np
-import time
-import numba
 
 
 @cuda.jit
