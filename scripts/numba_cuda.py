@@ -48,12 +48,16 @@ def add_conjugate_numpy(b, c, indices, n_iter: int):
     return a
 
 
+def rng_array(rng, shape):
+    return rng.uniform(high=1.0, low=0.0, size=shape).astype(np.float64)
+
+
 def rnd_complex(shape, seed=0):
     step, size = shape
     shape_bc = (step, size * 2)
     rng = np.random.default_rng(seed=seed)
-    b = rng.uniform(high=1.0, low=0.0, size=shape_bc) + 1j * rng.uniform(high=1.0, low=0.0, size=shape_bc)
-    c = rng.uniform(high=1.0, low=0.0, size=shape_bc) + 1j * rng.uniform(high=1.0, low=0.0, size=shape_bc)
+    b = rng_array(rng, shape_bc) + 1j * rng_array(rng, shape_bc)
+    c = rng_array(rng, shape_bc) + 1j * rng_array(rng, shape_bc)
     b = np.asfortranarray(b)
     c = np.asfortranarray(c)
     indices = rng.integers(low=0, high=size, size=size * 2, dtype=np.int64)
