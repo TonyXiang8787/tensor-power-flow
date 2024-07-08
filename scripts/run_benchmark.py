@@ -49,7 +49,10 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     pgm_time = end_time - start_time
 
     if threading != -1:
+        start_time = time.time()
         tpf_gpu_result = tpf.calculate_power_flow_gpu(update_data=fictional_dataset["pgm_update_dataset"])
+        end_time = time.time()
+        tpf_gpu_time = end_time - start_time
         max_diff = get_max_diff(tpf_result, pgm_result, tpf_gpu_result)
     else:
         max_diff = get_max_diff(tpf_result, pgm_result)
@@ -60,8 +63,10 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         print(f"Number of steps: {n_step}")
         print(f"Threading: {threading}")
         print(f"Max diff: {max_diff}")
-        print(f"TPF time: {tpf_time}")
         print(f"PGM time: {pgm_time}")
+        print(f"TPF time: {tpf_time}")
+        if threading != -1:
+            print(f"TPF GPU time: {tpf_gpu_time}")
         print("\n\n")
 
 

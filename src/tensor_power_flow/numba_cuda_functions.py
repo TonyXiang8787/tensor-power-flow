@@ -95,16 +95,16 @@ def _set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     step, n_node = u.shape
     n_load = load_pu.shape[1]
     i = cuda.grid(1)
-    if i >= n_load:
+    if i >= step:
         return
-    for j_load in range(step):
-        j_node = load_node[i]
-        single_type = load_type[i]
-        if single_type == CONST_POWER:
+    for j_load in range(n_load):
+        j_node = load_node[j_load]
+        j_type = load_type[j_load]
+        if j_type == CONST_POWER:
             rhs[i, j_node] -= (load_pu[i, j_load] / u[i, j_node]).conjugate()
-        elif single_type == CONST_CURRENT:
+        elif j_type == CONST_CURRENT:
             rhs[i, j_node] -= (load_pu[i, j_load] * abs(u[i, j_node]) / u[i, j_node]).conjugate()
-        elif single_type == CONST_IMPEDANCE:
+        elif j_type == CONST_IMPEDANCE:
             # formula: conj(s * u_abs^2 / u) = conj(s * u * conj(u) / u) = conj(s * conj(u)) = conj(s) * u
             rhs[i, j_node] -= load_pu[i, j_load].conjugate() * u[i, j_node]
     rhs[i, n_node - 1] += i_ref
