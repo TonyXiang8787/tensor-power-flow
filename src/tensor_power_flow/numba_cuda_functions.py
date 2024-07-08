@@ -42,3 +42,17 @@ def get_load_pu(load_profile):
 
     _set_load_pu[*get_2d_grid(step, size)](load_pu, p_device, q_device)
     return load_pu
+
+
+@cuda.jit
+def _set_u(u, u_ref):
+    step, size = u.shape
+    i, j = cuda.grid(2)
+    if i < step and j < size:
+        u[i, j] = u_ref
+
+
+def get_u(step, size, u_ref):
+    u = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
+    _set_u[*get_2d_grid(step, size)](u, u_ref)
+    return u
