@@ -33,10 +33,10 @@ def _get_1d_grid(step):
 
 @cuda.jit
 def _set_load_pu(load_pu, p_array, q_array):
-    step, size = p_array.shape
-    i, j = cuda.grid(2)
-    if i < step and j < size:
-        load_pu[i, j] = complex(p_array[i, j], q_array[i, j]) / BASE_POWER
+    size = p_array.size
+    i = cuda.grid(1)
+    if i < size:
+        load_pu[i] = complex(p_array[i], q_array[i]) / BASE_POWER
 
 
 def get_load_pu(load_profile):
@@ -47,23 +47,25 @@ def get_load_pu(load_profile):
     step, size = p_array.shape
     load_pu = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
 
-    _set_load_pu[*_get_2d_grid(step, size)](load_pu, p_device, q_device)
+    _set_load_pu[_get_1d_grid(step * size)](
+        load_pu.ravel(order="F"), p_device.ravel(order="F"), q_device.ravel(order="F")
+    )
     return load_pu
 
 
 @cuda.jit
 def _set_u(u, u_ref):
-    step, size = u.shape
-    i, j = cuda.grid(2)
-    if i < step and j < size:
-        u[i, j] = u_ref
+    size = u.size
+    i = cuda.grid(1)
+    if i < size:
+        u[i] = u_ref
 
 
 def get_u_rhs(step, size, u_ref):
     u = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
     rhs = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
     u_diff2 = cuda.device_array(shape=(step, size), dtype=np.float64, order="F")
-    _set_u[*_get_2d_grid(step, size)](u, u_ref)
+    _set_u[_get_1d_grid(step * size)](u.ravel(order="F"), u_ref)
     return u, rhs, u_diff2
 
 
@@ -84,10 +86,10 @@ def get_lu_factorization(l_matrix: csr_array, u_matrix: csr_array):
 
 @cuda.jit
 def _set_rhs_zero(rhs):
-    step, size = rhs.shape
-    i, j = cuda.grid(2)
-    if i < step and j < size:
-        rhs[i, j] = 0.0
+    size = rhs.size
+    i = cuda.grid(1)
+    if i < size:
+        rhs[i] = 0.0
 
 
 @cuda.jit
@@ -112,7 +114,7 @@ def _set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
 
 def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     step, size_u = rhs.shape
-    _set_rhs_zero[*_get_2d_grid(step, size_u)](rhs)
+    _set_rhs_zero[_get_1d_grid(step * size_u)](rhs.ravel(order="F"))
     _set_rhs[_get_1d_grid(step)](rhs, load_pu, load_type, load_node, u, i_ref)
 
 
@@ -151,13 +153,13 @@ def solve_rhs_inplace(lu_factorization, rhs):
 
 @cuda.jit
 def _iterate_and_diff(u, rhs, u_diff2):
-    step, size = u.shape
-    i, j = cuda.grid(2)
-    if i < step and j < size:
-        diff = rhs[i, j] - u[i, j]
+    size = u.size
+    i = cuda.grid(1)
+    if i < size:
+        diff = rhs[i] - u[i]
         diff2 = diff.real**2 + diff.imag**2
-        u[i, j] = rhs[i, j]
-        u_diff2[i, j] = diff2
+        u[i] = rhs[i]
+        u_diff2[i] = diff2
 
 
 @cuda.reduce
@@ -167,7 +169,7 @@ def _max_diff2(a, b):
 
 def iterate_and_compare(u, rhs, u_diff2):
     step, size = u.shape
-    _iterate_and_diff[*_get_2d_grid(step, size)](u, rhs, u_diff2)
+    _iterate_and_diff[_get_1d_grid(step * size)](u.ravel(order="F"), rhs.ravel(order="F"), u_diff2.ravel(order="F"))
     max_diff2 = _max_diff2(u_diff2.ravel(order="F"))
     return max_diff2
 
