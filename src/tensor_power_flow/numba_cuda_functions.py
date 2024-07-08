@@ -113,3 +113,36 @@ def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     step, size_u = rhs.shape
     _set_rhs_zero[*_get_2d_grid(step, size_u)](rhs)
     _set_rhs[_get_1d_grid(step)](rhs, load_pu, load_type, load_node, u, i_ref)
+
+
+@cuda.jit
+def _solve_rhs_inplace(indptr_l, indices_l, data_l, indptr_u, indices_u, data_u, rhs):
+    step, size = rhs.shape
+    i = cuda.grid(1)
+    if i >= step:
+        return
+    # forward substitution
+    for row in range(size):
+        for index_col in range(indptr_l[row], indptr_l[row + 1] - 1):
+            col = indices_l[index_col]
+            rhs[i, row] -= data_l[index_col] * rhs[i, col]
+    # backward substitution
+    for row in range(size - 1, -1, -1):
+        for index_col in range(indptr_u[row + 1] - 1, indptr_u[row], -1):
+            col = indices_u[index_col]
+            rhs[i, row] -= data_u[index_col] * rhs[i, col]
+        index_diag = indptr_u[row]
+        rhs[i, row] /= data_u[index_diag]
+
+
+def solve_rhs_inplace(lu_factorization, rhs):
+    step, _ = rhs.shape
+    _solve_rhs_inplace[_get_1d_grid(step)](
+        lu_factorization["indptr_l"],
+        lu_factorization["indices_l"],
+        lu_factorization["data_l"],
+        lu_factorization["indptr_u"],
+        lu_factorization["indices_u"],
+        lu_factorization["data_u"],
+        rhs,
+    )
