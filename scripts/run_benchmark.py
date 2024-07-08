@@ -17,6 +17,8 @@ PROFILE_PATH.mkdir(exist_ok=True, parents=True)
 
 
 def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = False, threading: int = -1):
+    enable_gpu = threading != -1 and cuda.is_available()
+
     cable_length_km_min = 0.8
     cable_length_km_max = 1.2
     load_p_w_max = 0.4e6 * 1.2
@@ -59,11 +61,9 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     end_time = time.time()
     profiler.disable()
     pgm_time = end_time - start_time
-    if print_result:
+    if print_result and enable_gpu:
         with open(PROFILE_PATH / f"node_{n_node_per_feeder * n_feeder}_step_{n_step}_tpf.stats", "w") as f:
             pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
-
-    enable_gpu = threading != -1 and cuda.is_available()
 
     if enable_gpu:
         profiler = cProfile.Profile()
