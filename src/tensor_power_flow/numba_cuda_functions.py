@@ -16,6 +16,14 @@ CONST_IMPEDANCE = int(LoadGenType.const_impedance)
 THREADS_PER_BLOCK = 32
 
 
+def get_2d_grid(step, size):
+    threads_per_block = (THREADS_PER_BLOCK, THREADS_PER_BLOCK)
+    blocks_per_grid_x = (step + (threads_per_block[0] - 1)) // threads_per_block[0]
+    blocks_per_grid_y = (size + (threads_per_block[1] - 1)) // threads_per_block[1]
+    blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)
+    return blocks_per_grid, threads_per_block
+
+
 @cuda.jit
 def _set_load_pu(load_pu, p_array, q_array):
     step, size = p_array.shape
@@ -32,9 +40,5 @@ def get_load_pu(load_profile):
     step, size = p_array.shape
     load_pu = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
 
-    threadsperblock = (THREADS_PER_BLOCK, THREADS_PER_BLOCK)
-    blockspergrid_x = (step + (threadsperblock[0] - 1)) // threadsperblock[0]
-    blockspergrid_y = (size + (threadsperblock[1] - 1)) // threadsperblock[1]
-    blockspergrid = (blockspergrid_x, blockspergrid_y)
-    _set_load_pu[blockspergrid, threadsperblock](load_pu, p_device, q_device)
+    _set_load_pu[*get_2d_grid(step, size)](load_pu, p_device, q_device)
     return load_pu
