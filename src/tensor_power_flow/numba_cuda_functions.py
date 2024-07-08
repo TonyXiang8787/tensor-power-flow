@@ -50,6 +50,7 @@ def get_load_pu(load_profile):
     _set_load_pu[_get_1d_grid(step * size)](
         load_pu.ravel(order="F"), p_device.ravel(order="F"), q_device.ravel(order="F")
     )
+    cuda.synchronize()
     return load_pu
 
 
@@ -66,15 +67,19 @@ def get_u_rhs(step, size, u_ref):
     rhs = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
     u_diff2 = cuda.device_array(shape=(step, size), dtype=np.float64, order="F")
     _set_u[_get_1d_grid(step * size)](u.ravel(order="F"), u_ref)
+    cuda.synchronize()
     return u, rhs, u_diff2
 
 
 def get_load_node_and_type(load_node, load_type):
-    return cuda.to_device(load_node), cuda.to_device(load_type)
+    node_device = cuda.to_device(load_node)
+    type_device = cuda.to_device(load_type)
+    cuda.synchronize()
+    return node_device, type_device
 
 
 def get_lu_factorization(l_matrix: csr_array, u_matrix: csr_array):
-    return {
+    return_dict = {
         "indptr_l": cuda.to_device(l_matrix.indptr),
         "indices_l": cuda.to_device(l_matrix.indices),
         "data_l": cuda.to_device(l_matrix.data),
@@ -82,6 +87,8 @@ def get_lu_factorization(l_matrix: csr_array, u_matrix: csr_array):
         "indices_u": cuda.to_device(u_matrix.indices),
         "data_u": cuda.to_device(u_matrix.data),
     }
+    cuda.synchronize()
+    return return_dict
 
 
 @cuda.jit
@@ -116,6 +123,7 @@ def set_rhs(rhs, load_pu, load_type, load_node, u, i_ref):
     step, size_u = rhs.shape
     _set_rhs_zero[_get_1d_grid(step * size_u)](rhs.ravel(order="F"))
     _set_rhs[_get_1d_grid(step)](rhs, load_pu, load_type, load_node, u, i_ref)
+    cuda.synchronize()
 
 
 @cuda.jit
@@ -149,6 +157,7 @@ def solve_rhs_inplace(lu_factorization, rhs):
         lu_factorization["data_u"],
         rhs,
     )
+    cuda.synchronize()
 
 
 @cuda.jit
@@ -171,6 +180,7 @@ def iterate_and_compare(u, rhs, u_diff2):
     step, size = u.shape
     _iterate_and_diff[_get_1d_grid(step * size)](u.ravel(order="F"), rhs.ravel(order="F"), u_diff2.ravel(order="F"))
     max_diff2 = _max_diff2(u_diff2.ravel(order="F"))
+    cuda.synchronize()
     return max_diff2
 
 
