@@ -10,15 +10,7 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
-from .numba_functions import (
-    iterate_and_compare_parallel,
-    iterate_and_compare_seq,
-    set_load_pu,
-    set_rhs_parallel,
-    set_rhs_seq,
-    solve_rhs_inplace_parallel,
-    solve_rhs_inplace_seq,
-)
+from . import numba_functions as nf
 
 
 class TensorPowerFlow:
@@ -165,7 +157,7 @@ class TensorPowerFlow:
         # initialize
         # load_pu
         load_pu = np.empty(shape=(n_steps, self._n_load), dtype=np.complex128, order="F")
-        set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])
+        nf.set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])
         u = np.full(shape=(n_steps, self._n_node), fill_value=self._u_ref, dtype=np.complex128, order="F")
         # rhs variable, empty
         rhs = np.empty(shape=(n_steps, self._n_node), dtype=np.complex128, order="F")
@@ -173,8 +165,8 @@ class TensorPowerFlow:
         # iterate
         for _ in range(max_iteration):
             if use_parallel:
-                set_rhs_parallel(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
-                solve_rhs_inplace_parallel(
+                nf.set_rhs_parallel(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
+                nf.solve_rhs_inplace_parallel(
                     indptr_l=self._l_matrix.indptr,
                     indices_l=self._l_matrix.indices,
                     data_l=self._l_matrix.data,
@@ -183,10 +175,10 @@ class TensorPowerFlow:
                     data_u=self._u_matrix.data,
                     rhs=rhs,
                 )
-                max_diff2 = iterate_and_compare_parallel(u, rhs)
+                max_diff2 = nf.iterate_and_compare_parallel(u, rhs)
             else:
-                set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
-                solve_rhs_inplace_seq(
+                nf.set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
+                nf.solve_rhs_inplace_seq(
                     indptr_l=self._l_matrix.indptr,
                     indices_l=self._l_matrix.indices,
                     data_l=self._l_matrix.data,
@@ -195,7 +187,7 @@ class TensorPowerFlow:
                     data_u=self._u_matrix.data,
                     rhs=rhs,
                 )
-                max_diff2 = iterate_and_compare_seq(u, rhs)
+                max_diff2 = nf.iterate_and_compare_seq(u, rhs)
             if max_diff2 < error_tolerance**2:
                 break
         else:
