@@ -205,4 +205,4 @@ class TensorPowerFlow:
         self.pre_cache_calculation()
         load_profile = update_data["sym_load"]
         load_pu = ncf.get_load_pu(load_profile)
-        u = ncf.get_u(load_profile.shape[0], self._n_node, self._u_ref)
+        u, rhs = ncf.get_u_rhs(load_profile.shape[0], self._n_node, self._u_ref)

@@ -52,7 +52,8 @@ def _set_u(u, u_ref):
         u[i, j] = u_ref
 
 
-def get_u(step, size, u_ref):
+def get_u_rhs(step, size, u_ref):
     u = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
+    rhs = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
     _set_u[*get_2d_grid(step, size)](u, u_ref)
-    return u
+    return u, rhs
