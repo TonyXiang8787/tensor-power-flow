@@ -47,6 +47,8 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     end_time = time.time()
     tpf_time = end_time - start_time
 
+    profiler = cProfile.Profile()
+    profiler.enable()
     start_time = time.time()
     pgm_result = pgm.calculate_power_flow(
         update_data=fictional_dataset["pgm_update_dataset"],
@@ -55,7 +57,11 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         threading=threading,
     )
     end_time = time.time()
+    profiler.disable()
     pgm_time = end_time - start_time
+    if print_result:
+        with open(PROFILE_PATH / f"node_{n_node_per_feeder * n_feeder}_step_{n_step}_tpf.stats", "w") as f:
+            pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
 
     enable_gpu = threading != -1 and cuda.is_available()
 
@@ -69,7 +75,7 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         tpf_gpu_time = end_time - start_time
         max_diff = get_max_diff(tpf_result, pgm_result, tpf_gpu_result)
         if print_result:
-            with open(PROFILE_PATH / f"tpf_gpu_node_{n_node_per_feeder * n_feeder}_step_{n_step}.stats", "w") as f:
+            with open(PROFILE_PATH / f"node_{n_node_per_feeder * n_feeder}_step_{n_step}_tpf_gpu.stats", "w") as f:
                 pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
     else:
         max_diff = get_max_diff(tpf_result, pgm_result)
