@@ -132,16 +132,19 @@ class TensorPowerFlow:
         self._u_matrix = splu.U.tocsr(copy=True)
         self._y_ref = y_source
 
-    def calculate_power_flow(
-        self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8, threading=-1
-    ):
-        check_update(self._input_data, update_data)
+    def pre_cache_calculation(self):
         if self._node_reordered_to_org is None:
             self._graph_reorder()
         if self._y_bus is None:
             self._build_y_bus()
         if self._l_matrix is None:
             self._factorize_matrix()
+
+    def calculate_power_flow(
+        self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8, threading=-1
+    ):
+        check_update(self._input_data, update_data)
+        self.pre_cache_calculation()
         load_profile = update_data["sym_load"]
         n_steps = load_profile.shape[0]
 
