@@ -44,13 +44,16 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     pgm = PowerGridModel(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
     tpf = TensorPowerFlow(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
 
+    profiler = cProfile.Profile()
+    profiler.enable()
     start_time = time.time()
     tpf_result = tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"], threading=threading)
     end_time = time.time()
     tpf_time = end_time - start_time
+    if print_result and enable_gpu:
+        with open(PROFILE_PATH / f"node_{n_node_per_feeder * n_feeder}_step_{n_step}_tpf.stats", "w") as f:
+            pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
 
-    profiler = cProfile.Profile()
-    profiler.enable()
     start_time = time.time()
     pgm_result = pgm.calculate_power_flow(
         update_data=fictional_dataset["pgm_update_dataset"],
@@ -61,9 +64,6 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     end_time = time.time()
     profiler.disable()
     pgm_time = end_time - start_time
-    if print_result and enable_gpu:
-        with open(PROFILE_PATH / f"node_{n_node_per_feeder * n_feeder}_step_{n_step}_tpf.stats", "w") as f:
-            pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
 
     if enable_gpu:
         profiler = cProfile.Profile()
