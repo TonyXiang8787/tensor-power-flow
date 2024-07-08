@@ -41,6 +41,8 @@ class TensorPowerFlow:
     _l_matrix: Optional[sp.csr_array] = None
     _u_matrix: Optional[sp.csr_array] = None
     _y_ref: Optional[np.complex128] = None
+    _u_ref: np.complex128
+    _i_ref: np.complex128
 
     def __init__(self, input_data: SingleDataset, system_frequency: float):
         self._input_data = input_data
@@ -57,6 +59,9 @@ class TensorPowerFlow:
         self._load_node = self._model.get_indexer("node", input_data["sym_load"]["node"])
         self._source_node = self._model.get_indexer("node", input_data["source"]["node"])[0]
         self._load_type = input_data["sym_load"]["type"].copy()
+        # u variable, flat start as u_ref
+        self._u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
+        self._i_ref = self._y_ref * self._u_ref
 
     def _graph_reorder(self):
         edge_i = np.concatenate((self._line_node_from, self._line_node_to), axis=0)
@@ -161,17 +166,14 @@ class TensorPowerFlow:
         # load_pu
         load_pu = np.empty(shape=(n_steps, self._n_load), dtype=np.complex128, order="F")
         set_load_pu(load_pu, load_profile["p_specified"], load_profile["q_specified"])
-        # u variable, flat start as u_ref
-        u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
-        i_ref = self._y_ref * u_ref
-        u = np.full(shape=(n_steps, self._n_node), fill_value=u_ref, dtype=np.complex128, order="F")
+        u = np.full(shape=(n_steps, self._n_node), fill_value=self._u_ref, dtype=np.complex128, order="F")
         # rhs variable, empty
         rhs = np.empty(shape=(n_steps, self._n_node), dtype=np.complex128, order="F")
 
         # iterate
         for _ in range(max_iteration):
             if use_parallel:
-                set_rhs_parallel(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
+                set_rhs_parallel(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
                 solve_rhs_inplace_parallel(
                     indptr_l=self._l_matrix.indptr,
                     indices_l=self._l_matrix.indices,
@@ -183,7 +185,7 @@ class TensorPowerFlow:
                 )
                 max_diff2 = iterate_and_compare_parallel(u, rhs)
             else:
-                set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, i_ref)
+                set_rhs_seq(rhs, load_pu, self._load_type, self._load_node, u, self._i_ref)
                 solve_rhs_inplace_seq(
                     indptr_l=self._l_matrix.indptr,
                     indices_l=self._l_matrix.indices,
@@ -197,7 +199,7 @@ class TensorPowerFlow:
             if max_diff2 < error_tolerance**2:
                 break
         else:
-            raise ValueError(f"The power flow calculation does not converge! Max diff: {max_diff}")
+            raise ValueError(f"The power flow calculation does not converge! Max diff: {np.sqrt(max_diff2)}")
 
         # reorder back to original
         u = u[:, self._node_org_to_reordered]
