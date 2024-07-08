@@ -50,8 +50,9 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
 
     if threading != -1:
         tpf_gpu_result = tpf.calculate_power_flow_gpu(update_data=fictional_dataset["pgm_update_dataset"])
-
-    max_diff = get_max_diff(tpf_result, pgm_result)
+        max_diff = get_max_diff(tpf_result, pgm_result, tpf_gpu_result)
+    else:
+        max_diff = get_max_diff(tpf_result, pgm_result)
 
     if print_result:
         print("Benchmark result:")
@@ -64,10 +65,10 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         print("\n\n")
 
 
-def get_max_diff(tpf_result, pgm_result):
-    u_tpf = tpf_result["node"]["u_pu"] * np.exp(1j * tpf_result["node"]["u_angle"])
-    u_pgm = pgm_result["node"]["u_pu"] * np.exp(1j * pgm_result["node"]["u_angle"])
-    return np.max(np.abs(u_tpf - u_pgm))
+def get_max_diff(*results):
+    u_results = [result["node"]["u_pu"] * np.exp(1j * result["node"]["u_angle"]) for result in results]
+    max_diffs = [np.max(np.abs(r1 - r2)) for r1, r2 in zip(u_results[:-1], u_results[1:])]
+    return np.max(max_diffs)
 
 
 if __name__ == "__main__":

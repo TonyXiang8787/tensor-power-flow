@@ -217,3 +217,5 @@ class TensorPowerFlow:
                 break
         else:
             raise ValueError(f"The power flow calculation does not converge! Max diff: {np.sqrt(max_diff2)}")
+        u_pu, u_angle = ncf.get_result(u, self._node_org_to_reordered)
+        return {"node": {"u_pu": u_pu, "u_angle": u_angle}}

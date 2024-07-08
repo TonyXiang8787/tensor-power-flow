@@ -3,6 +3,7 @@ from .base_power import BASE_POWER
 from power_grid_model import LoadGenType
 import numpy as np
 from scipy.sparse import csr_array
+import math
 
 from numba.core.errors import NumbaPerformanceWarning
 
@@ -167,5 +168,26 @@ def _max_diff2(a, b):
 def iterate_and_compare(u, rhs, u_diff2):
     step, size = u.shape
     _iterate_and_diff[*_get_2d_grid(step, size)](u, rhs, u_diff2)
-    max_diff2 = _max_diff2(u_diff2.ravel(order='F'))
+    max_diff2 = _max_diff2(u_diff2.ravel(order="F"))
     return max_diff2
+
+
+@cuda.jit
+def _get_result(u, node_org_to_reordered, u_pu, u_angle):
+    step, size = u.shape
+    i, j = cuda.grid(2)
+    if i < step and j < size:
+        u_single = u[i, node_org_to_reordered[j]]
+        u_pu[i, j] = abs(u_single)
+        tan_theta = u_single.imag / u_single.real
+        theta = math.atan(tan_theta)
+        u_angle[i, j] = theta if u_single.real > 0.0 else -theta
+
+
+def get_result(u, node_org_to_reordered):
+    step, size = u.shape
+    u_pu = cuda.device_array(shape=(step, size), dtype=np.float64, order="F")
+    u_angle = cuda.device_array(shape=(step, size), dtype=np.float64, order="F")
+    node_org_to_reordered_device = cuda.to_device(node_org_to_reordered)
+    _get_result[*_get_2d_grid(step, size)](u, node_org_to_reordered_device, u_pu, u_angle)
+    return u_pu.copy_to_host(), u_angle.copy_to_host()
