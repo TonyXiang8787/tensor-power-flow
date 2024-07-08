@@ -2,6 +2,7 @@ import numba.cuda as cuda
 from .base_power import BASE_POWER
 from power_grid_model import LoadGenType
 import numpy as np
+from scipy.sparse import csr_array
 
 from numba.core.errors import NumbaPerformanceWarning
 
@@ -57,3 +58,14 @@ def get_u_rhs(step, size, u_ref):
     rhs = cuda.device_array(shape=(step, size), dtype=np.complex128, order="F")
     _set_u[*get_2d_grid(step, size)](u, u_ref)
     return u, rhs
+
+
+def get_lu_factorization(l_matrix: csr_array, u_matrix: csr_array):
+    return {
+        "indptr_l": cuda.to_device(l_matrix.indptr),
+        "indices_l": cuda.to_device(l_matrix.indices),
+        "data_l": cuda.to_device(l_matrix.data),
+        "indptr_u": cuda.to_device(u_matrix.indptr),
+        "indices_u": cuda.to_device(u_matrix.indices),
+        "data_u": cuda.to_device(u_matrix.data),
+    }

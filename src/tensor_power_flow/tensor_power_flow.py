@@ -206,3 +206,4 @@ class TensorPowerFlow:
         load_profile = update_data["sym_load"]
         load_pu = ncf.get_load_pu(load_profile)
         u, rhs = ncf.get_u_rhs(load_profile.shape[0], self._n_node, self._u_ref)
+        lu_factorization = ncf.get_lu_factorization(self._l_matrix, self._u_matrix)
