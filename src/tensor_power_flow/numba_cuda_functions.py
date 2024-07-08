@@ -146,3 +146,26 @@ def solve_rhs_inplace(lu_factorization, rhs):
         lu_factorization["data_u"],
         rhs,
     )
+
+
+@cuda.jit
+def _iterate_and_diff(u, rhs, u_diff2):
+    step, size = u.shape
+    i, j = cuda.grid(2)
+    if i < step and j < size:
+        diff = rhs[i, j] - u[i, j]
+        diff2 = diff.real**2 + diff.imag**2
+        u[i, j] = rhs[i, j]
+        u_diff2[i, j] = diff2
+
+
+@cuda.reduce
+def _max_diff2(a, b):
+    return max(a, b)
+
+
+def iterate_and_compare(u, rhs, u_diff2):
+    step, size = u.shape
+    _iterate_and_diff[*_get_2d_grid(step, size)](u, rhs, u_diff2)
+    max_diff2 = _max_diff2(u_diff2.ravel(order='F'))
+    return max_diff2

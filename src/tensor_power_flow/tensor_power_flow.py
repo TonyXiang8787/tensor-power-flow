@@ -212,8 +212,8 @@ class TensorPowerFlow:
         for _ in range(max_iteration):
             ncf.set_rhs(rhs, load_pu, load_type, load_node, u, self._i_ref)
             ncf.solve_rhs_inplace(lu_factorization, rhs)
-
-            max_diff2 = 0.0
-            break  # TODO remove
+            max_diff2 = ncf.iterate_and_compare(u, rhs, u_diff2)
+            if max_diff2 < error_tolerance**2:
+                break
         else:
             raise ValueError(f"The power flow calculation does not converge! Max diff: {np.sqrt(max_diff2)}")
