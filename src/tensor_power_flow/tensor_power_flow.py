@@ -41,8 +41,8 @@ class TensorPowerFlow:
     _l_matrix: Optional[sp.csr_array] = None
     _u_matrix: Optional[sp.csr_array] = None
     _y_ref: Optional[np.complex128] = None
-    _u_ref: np.complex128
-    _i_ref: np.complex128
+    _u_ref: Optional[np.complex128] = None
+    _i_ref: Optional[np.complex128] = None
 
     def __init__(self, input_data: SingleDataset, system_frequency: float):
         self._input_data = input_data
@@ -59,9 +59,6 @@ class TensorPowerFlow:
         self._load_node = self._model.get_indexer("node", input_data["sym_load"]["node"])
         self._source_node = self._model.get_indexer("node", input_data["source"]["node"])[0]
         self._load_type = input_data["sym_load"]["type"].copy()
-        # u variable, flat start as u_ref
-        self._u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
-        self._i_ref = self._y_ref * self._u_ref
 
     def _graph_reorder(self):
         edge_i = np.concatenate((self._line_node_from, self._line_node_to), axis=0)
@@ -144,6 +141,9 @@ class TensorPowerFlow:
             self._build_y_bus()
         if self._l_matrix is None:
             self._factorize_matrix()
+        # u variable, flat start as u_ref
+        self._u_ref = self._input_data["source"][0]["u_ref"] + 0.0 * 1j
+        self._i_ref = self._y_ref * self._u_ref
 
     def calculate_power_flow(
         self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8, threading=-1
