@@ -1,10 +1,19 @@
 import time
 
 import numpy as np
+import numba.cuda as cuda
 from power_grid_model import CalculationMethod, PowerGridModel
 
 from tensor_power_flow import TensorPowerFlow
 from tensor_power_flow.ficional_grid_generator import generate_fictional_grid
+
+import cProfile
+import pstats
+
+from pathlib import Path
+
+PROFILE_PATH = Path(__file__).parent / "profile_results"
+PROFILE_PATH.mkdir(exist_ok=True, parents=True)
 
 
 def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = False, threading: int = -1):
@@ -48,12 +57,20 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     end_time = time.time()
     pgm_time = end_time - start_time
 
-    if threading != -1:
+    enable_gpu = threading != -1 and cuda.is_available()
+
+    if enable_gpu:
+        profiler = cProfile.Profile()
+        profiler.enable()
         start_time = time.time()
         tpf_gpu_result = tpf.calculate_power_flow_gpu(update_data=fictional_dataset["pgm_update_dataset"])
         end_time = time.time()
+        profiler.disable()
         tpf_gpu_time = end_time - start_time
         max_diff = get_max_diff(tpf_result, pgm_result, tpf_gpu_result)
+        if print_result:
+            with open(PROFILE_PATH / f"tpf_gpu_node_{n_node_per_feeder * n_feeder}_step_{n_step}.stats", "w") as f:
+                pstats.Stats(profiler, stream=f).sort_stats("cumulative").print_stats()
     else:
         max_diff = get_max_diff(tpf_result, pgm_result)
 
@@ -65,7 +82,7 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         print(f"Max diff: {max_diff}")
         print(f"PGM time: {pgm_time}")
         print(f"TPF time: {tpf_time}")
-        if threading != -1:
+        if enable_gpu:
             print(f"TPF GPU time: {tpf_gpu_time}")
         print("\n\n")
 

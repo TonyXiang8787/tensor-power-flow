@@ -180,7 +180,7 @@ def _get_result(u, node_org_to_reordered, u_pu, u_angle):
     i, j = cuda.grid(2)
     if i < step and j < size:
         u_single = u[i, node_org_to_reordered[j]]
-        u_pu[i, j] = abs(u_single)
+        u_pu[i, j] = math.sqrt(u_single.real**2 + u_single.imag**2)
         tan_theta = u_single.imag / u_single.real
         theta = math.atan(tan_theta)
         u_angle[i, j] = theta if u_single.real > 0.0 else -theta
