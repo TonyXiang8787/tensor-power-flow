@@ -3,6 +3,11 @@ import time
 import numba
 import numba.cuda as cuda
 import numpy as np
+from numba.core.errors import NumbaPerformanceWarning
+
+import warnings
+
+warnings.simplefilter("ignore", category=NumbaPerformanceWarning)
 
 
 @cuda.jit

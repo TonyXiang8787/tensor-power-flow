@@ -11,6 +11,7 @@ from power_grid_model.data_types import BatchDataset, SingleDataset
 from .base_power import BASE_POWER
 from .data_checker import check_input, check_update
 from . import numba_functions as nf
+from . import numba_cuda_functions as ncf
 
 
 class TensorPowerFlow:
@@ -196,3 +197,11 @@ class TensorPowerFlow:
         # reorder back to original
         u = u[:, self._node_org_to_reordered]
         return {"node": {"u_pu": np.abs(u), "u_angle": np.angle(u)}}
+
+    def calculate_power_flow_gpu(
+        self, *, update_data: BatchDataset, max_iteration: int = 20, error_tolerance: float = 1e-8
+    ):
+        check_update(self._input_data, update_data)
+        self.pre_cache_calculation()
+        load_profile = update_data["sym_load"]
+        load_pu = ncf.get_load_pu(load_profile)

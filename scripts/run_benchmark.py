@@ -30,14 +30,15 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
         load_scaling_max=load_scaling_max,
     )
 
-    start_time = time.time()
+    pgm = PowerGridModel(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
     tpf = TensorPowerFlow(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
+
+    start_time = time.time()
     tpf_result = tpf.calculate_power_flow(update_data=fictional_dataset["pgm_update_dataset"], threading=threading)
     end_time = time.time()
     tpf_time = end_time - start_time
 
     start_time = time.time()
-    pgm = PowerGridModel(input_data=fictional_dataset["pgm_dataset"], system_frequency=50.0)
     pgm_result = pgm.calculate_power_flow(
         update_data=fictional_dataset["pgm_update_dataset"],
         output_component_types={"node"},
@@ -46,6 +47,9 @@ def run_benchmark(n_node_per_feeder, n_feeder, n_step, print_result: bool = Fals
     )
     end_time = time.time()
     pgm_time = end_time - start_time
+
+    if threading != -1:
+        tpf_gpu_result = tpf.calculate_power_flow_gpu(update_data=fictional_dataset["pgm_update_dataset"])
 
     max_diff = get_max_diff(tpf_result, pgm_result)
 
@@ -68,8 +72,8 @@ def get_max_diff(tpf_result, pgm_result):
 
 if __name__ == "__main__":
     # pre compile
-    run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=True)
-    # run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=False, threading=4)
+    # run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=True)
+    run_benchmark(n_node_per_feeder=3, n_feeder=2, n_step=10, print_result=True, threading=4)
 
     # run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True)
     # run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True)
