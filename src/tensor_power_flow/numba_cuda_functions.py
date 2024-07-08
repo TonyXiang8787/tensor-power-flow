@@ -19,7 +19,7 @@ THREADS_PER_BLOCK = 32
 
 
 def _get_2d_grid(step, size):
-    threads_per_block = (THREADS_PER_BLOCK, 1)
+    threads_per_block = (THREADS_PER_BLOCK, THREADS_PER_BLOCK)
     blocks_per_grid_x = (step + (threads_per_block[0] - 1)) // threads_per_block[0]
     blocks_per_grid_y = (size + (threads_per_block[1] - 1)) // threads_per_block[1]
     blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)
