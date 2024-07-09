@@ -107,4 +107,4 @@ if __name__ == "__main__":
     run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True)
     run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True)
     run_benchmark(n_node_per_feeder=10, n_feeder=100, n_step=10_000, print_result=True, threading=4)
-    run_benchmark(n_node_per_feeder=10, n_feeder=10, n_step=100_000, print_result=True, threading=4)
+    run_benchmark(n_node_per_feeder=5, n_feeder=2, n_step=1_000_000, print_result=True, threading=4)
