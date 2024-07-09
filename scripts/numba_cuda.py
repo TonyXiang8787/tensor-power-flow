@@ -43,12 +43,22 @@ def add_conjugate_cuda(b, c, indices, n_iter: int):
 
 
 @numba.njit(parallel=True)
-def add_conjugate_numba_cpu(b, c, indices, n_iter: int, types):
-    a = np.zeros_like(b)
+def add_conjugate_numba_cpu_kernel(rhs, load, u, indices, types):
+    for node_j, (load_j, load_type) in enumerate(zip(indices, types)):
+        if load_type == CONST_POWER:
+            rhs[:, node_j] -= np.conj(load[:, load_j] / u[:, node_j])
+        elif load_type == CONST_CURRENT:
+            rhs[:, node_j] -= np.conj(load[:, load_j] * np.abs(u[:, node_j]) / u[:, node_j])
+        elif load_type == CONST_IMPEDANCE:
+            # formula: conj(s * u_abs^2 / u) = conj(s * u * conj(u) / u) = conj(s * conj(u)) = conj(s) * u
+            rhs[:, node_j] -= np.conj(load[:, load_j]) * u[:, node_j]
+
+
+def add_conjugate_numba_cpu(load, u, indices, n_iter: int, types):
+    rhs = np.zeros_like(u)
     for _ in range(n_iter):
-        for i, index in enumerate(indices):
-            a[:, index] += b[:, i] + c[:, i].conjugate()
-    return a
+        add_conjugate_numba_cpu_kernel(rhs, load, u, indices, types)
+    return rhs
 
 
 def rng_array(rng, shape):
@@ -57,35 +67,35 @@ def rng_array(rng, shape):
 
 def rnd_complex(shape, seed=0):
     step, size = shape
-    shape_b = (step, size * 2)
+    shape_load = (step, size * 2)
     rng = np.random.default_rng(seed=seed)
-    b = rng_array(rng, shape_b) + 1j * rng_array(rng, shape_b)
-    c = rng_array(rng, shape) + 1j * rng_array(rng, shape)
-    b = np.asfortranarray(b)
-    c = np.asfortranarray(c)
+    load = rng_array(rng, shape_load) + 1j * rng_array(rng, shape_load)
+    u = rng_array(rng, shape) + 1j * rng_array(rng, shape)
+    load = np.asfortranarray(load)
+    u = np.asfortranarray(u)
     indices = rng.integers(low=0, high=size, size=size * 2, dtype=np.int64)
     types = rng.integers(low=0, high=3, size=size * 2, dtype=np.int8)
-    return b, c, indices, types
+    return load, u, indices, types
 
 
 def run_test(size, step, n_iter=5, print_output=False):
     shape = (step, size)
-    b, c, indices, types = rnd_complex(shape)
+    load, u, indices, types = rnd_complex(shape)
 
-    start_cuda = time.time()
-    a_cuda = add_conjugate_cuda(b, c, n_iter=n_iter, indices=indices)
-    end_cuda = time.time()
+    # start_cuda = time.time()
+    # a_cuda = add_conjugate_cuda(b, c, n_iter=n_iter, indices=indices)
+    # end_cuda = time.time()
 
     start_numba_cpu = time.time()
-    a_numba_cpu = add_conjugate_numba_cpu(b, c, n_iter=n_iter, indices=indices, types=types)
+    rhs_numba_cpu = add_conjugate_numba_cpu(load, u, n_iter=n_iter, indices=indices, types=types)
     end_numba_cpu = time.time()
 
     if print_output:
         print(f"step: {step}, size: {size}")
-        print(f"Time taken for CUDA: {end_cuda - start_cuda} seconds")
+        # print(f"Time taken for CUDA: {end_cuda - start_cuda} seconds")
         print(f"Time taken for Numba CPU: {end_numba_cpu - start_numba_cpu} seconds")
-        diff = np.max(np.abs(a_cuda - a_numba_cpu))
-        print(f"Max diff: {diff}")
+        # diff = np.max(np.abs(a_cuda - a_numba_cpu))
+        # print(f"Max diff: {diff}")
 
 
 if __name__ == "__main__":
