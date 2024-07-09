@@ -16,6 +16,31 @@ CONST_IMPEDANCE = 2
 
 
 @cuda.jit
+def const_power_kernel(rhs_d, load_d, u_d):
+    step = rhs_d.size
+    i = cuda.grid(1)
+    if i < step:
+        rhs_d[i] -= (load_d[i] / u_d[i]).conjugate()
+
+
+@cuda.jit
+def const_current_kernel(rhs_d, load_d, u_d):
+    step = rhs_d.size
+    i = cuda.grid(1)
+    if i < step:
+        rhs_d[i] -= (load_d[i] * abs(u_d[i]) / u_d[i]).conjugate()
+
+
+@cuda.jit
+def const_impedance_kernel(rhs_d, load_d, u_d):
+    step = rhs_d.size
+    i = cuda.grid(1)
+    if i < step:
+        # formula: conj(s * u_abs^2 / u) = conj(s * u * conj(u) / u) = conj(s * conj(u)) = conj(s) * u
+        rhs_d[i] -= load_d[i].conjugate() * u_d[i]
+
+
+@cuda.jit
 def add_conjugate_kernel(rhs_d, load_d, u_d, indices_d, types_d):
     step, _ = rhs_d.shape
     i = cuda.grid(1)
@@ -31,20 +56,36 @@ def add_conjugate_kernel(rhs_d, load_d, u_d, indices_d, types_d):
             rhs_d[i, node_j] -= load_d[i, load_j].conjugate() * u_d[i, node_j]
 
 
-def add_conjugate_cuda(load, u, indices, n_iter: int, types):
+def add_conjugate_cuda(load, u, indices, n_iter: int, types, seperate_kernels=False):
     rhs_d = cuda.device_array_like(u)
     assert rhs_d.is_c_contiguous() == u.flags["C_CONTIGUOUS"]
     assert rhs_d.is_f_contiguous() == u.flags["F_CONTIGUOUS"]
     load_d = cuda.to_device(load)
     u_d = cuda.to_device(u)
-    indices_d = cuda.to_device(indices)
-    types_d = cuda.to_device(types)
 
     threadsperblock = 32
     step, _ = rhs_d.shape
     blockspergrid = (step + (threadsperblock - 1)) // threadsperblock
-    for _ in range(n_iter):
-        add_conjugate_kernel[blockspergrid, threadsperblock](rhs_d, load_d, u_d, indices_d, types_d)
+    if seperate_kernels:
+        for _ in range(n_iter):
+            for load_j, (node_j, load_type) in enumerate(zip(indices, types)):
+                if load_type == CONST_POWER:
+                    const_power_kernel[blockspergrid, threadsperblock](
+                        rhs_d[:, node_j], load_d[:, load_j], u_d[:, node_j]
+                    )
+                elif load_type == CONST_CURRENT:
+                    const_current_kernel[blockspergrid, threadsperblock](
+                        rhs_d[:, node_j], load_d[:, load_j], u_d[:, node_j]
+                    )
+                elif load_type == CONST_IMPEDANCE:
+                    const_impedance_kernel[blockspergrid, threadsperblock](
+                        rhs_d[:, node_j], load_d[:, load_j], u_d[:, node_j]
+                    )
+    else:
+        indices_d = cuda.to_device(indices)
+        types_d = cuda.to_device(types)
+        for _ in range(n_iter):
+            add_conjugate_kernel[blockspergrid, threadsperblock](rhs_d, load_d, u_d, indices_d, types_d)
     return rhs_d.copy_to_host()
 
 
