@@ -16,35 +16,41 @@ CONST_IMPEDANCE = 2
 
 
 @cuda.jit
-def add_conjugate_kernel(ad, bd, cd, indices_d, n_iter: int):
-    step, _ = ad.shape
+def add_conjugate_kernel(rhs_d, load_d, u_d, indices_d, types_d):
+    step, _ = rhs_d.shape
     i = cuda.grid(1)
     if i >= step:
         return
+    for load_j, (node_j, load_type) in enumerate(zip(indices_d, types_d)):
+        if load_type == CONST_POWER:
+            rhs_d[i, node_j] -= (load_d[i, load_j] / u_d[i, node_j]).conjugate()
+        elif load_type == CONST_CURRENT:
+            rhs_d[i, node_j] -= (load_d[i, load_j] * abs(u_d[i, node_j]) / u_d[i, node_j]).conjugate()
+        elif load_type == CONST_IMPEDANCE:
+            # formula: conj(s * u_abs^2 / u) = conj(s * u * conj(u) / u) = conj(s * conj(u)) = conj(s) * u
+            rhs_d[i, node_j] -= load_d[i, load_j].conjugate() * u_d[i, node_j]
 
-    for _ in range(n_iter):
-        for j, index in enumerate(indices_d):
-            ad[i, index] += bd[i, j] + cd[i, j].conjugate()
 
-
-def add_conjugate_cuda(b, c, indices, n_iter: int):
-    ad = cuda.device_array_like(b)
-    assert ad.is_c_contiguous() == b.flags["C_CONTIGUOUS"]
-    assert ad.is_f_contiguous() == b.flags["F_CONTIGUOUS"]
-    bd = cuda.to_device(b)
-    cd = cuda.to_device(c)
+def add_conjugate_cuda(load, u, indices, n_iter: int, types):
+    rhs_d = cuda.device_array_like(u)
+    assert rhs_d.is_c_contiguous() == u.flags["C_CONTIGUOUS"]
+    assert rhs_d.is_f_contiguous() == u.flags["F_CONTIGUOUS"]
+    load_d = cuda.to_device(load)
+    u_d = cuda.to_device(u)
     indices_d = cuda.to_device(indices)
+    types_d = cuda.to_device(types)
 
     threadsperblock = 32
-    step, _ = ad.shape
+    step, _ = rhs_d.shape
     blockspergrid = (step + (threadsperblock - 1)) // threadsperblock
-    add_conjugate_kernel[blockspergrid, threadsperblock](ad, bd, cd, indices_d, n_iter)
-    return ad.copy_to_host()
+    for _ in range(n_iter):
+        add_conjugate_kernel[blockspergrid, threadsperblock](rhs_d, load_d, u_d, indices_d, types_d)
+    return rhs_d.copy_to_host()
 
 
 @numba.njit(parallel=True)
 def add_conjugate_numba_cpu_kernel(rhs, load, u, indices, types):
-    for node_j, (load_j, load_type) in enumerate(zip(indices, types)):
+    for load_j, (node_j, load_type) in enumerate(zip(indices, types)):
         if load_type == CONST_POWER:
             rhs[:, node_j] -= np.conj(load[:, load_j] / u[:, node_j])
         elif load_type == CONST_CURRENT:
@@ -82,9 +88,9 @@ def run_test(size, step, n_iter=5, print_output=False):
     shape = (step, size)
     load, u, indices, types = rnd_complex(shape)
 
-    # start_cuda = time.time()
-    # a_cuda = add_conjugate_cuda(b, c, n_iter=n_iter, indices=indices)
-    # end_cuda = time.time()
+    start_cuda = time.time()
+    rhs_cuda = add_conjugate_cuda(load, u, n_iter=n_iter, indices=indices, types=types)
+    end_cuda = time.time()
 
     start_numba_cpu = time.time()
     rhs_numba_cpu = add_conjugate_numba_cpu(load, u, n_iter=n_iter, indices=indices, types=types)
@@ -92,10 +98,10 @@ def run_test(size, step, n_iter=5, print_output=False):
 
     if print_output:
         print(f"step: {step}, size: {size}")
-        # print(f"Time taken for CUDA: {end_cuda - start_cuda} seconds")
+        print(f"Time taken for CUDA: {end_cuda - start_cuda} seconds")
         print(f"Time taken for Numba CPU: {end_numba_cpu - start_numba_cpu} seconds")
-        # diff = np.max(np.abs(a_cuda - a_numba_cpu))
-        # print(f"Max diff: {diff}")
+        diff = np.max(np.abs(rhs_cuda - rhs_numba_cpu))
+        print(f"Max diff: {diff}")
 
 
 if __name__ == "__main__":
