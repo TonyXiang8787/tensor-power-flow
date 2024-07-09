@@ -10,6 +10,11 @@ import warnings
 warnings.simplefilter("ignore", category=NumbaPerformanceWarning)
 
 
+CONST_POWER = 0
+CONST_CURRENT = 1
+CONST_IMPEDANCE = 2
+
+
 @cuda.jit
 def add_conjugate_kernel(ad, bd, cd, indices_d, n_iter: int):
     step, _ = ad.shape
@@ -38,7 +43,7 @@ def add_conjugate_cuda(b, c, indices, n_iter: int):
 
 
 @numba.njit(parallel=True)
-def add_conjugate_numba_cpu(b, c, indices, n_iter: int):
+def add_conjugate_numba_cpu(b, c, indices, n_iter: int, types):
     a = np.zeros_like(b)
     for _ in range(n_iter):
         for i, index in enumerate(indices):
@@ -52,26 +57,27 @@ def rng_array(rng, shape):
 
 def rnd_complex(shape, seed=0):
     step, size = shape
-    shape_bc = (step, size * 2)
+    shape_b = (step, size * 2)
     rng = np.random.default_rng(seed=seed)
-    b = rng_array(rng, shape_bc) + 1j * rng_array(rng, shape_bc)
-    c = rng_array(rng, shape_bc) + 1j * rng_array(rng, shape_bc)
+    b = rng_array(rng, shape_b) + 1j * rng_array(rng, shape_b)
+    c = rng_array(rng, shape) + 1j * rng_array(rng, shape)
     b = np.asfortranarray(b)
     c = np.asfortranarray(c)
     indices = rng.integers(low=0, high=size, size=size * 2, dtype=np.int64)
-    return b, c, indices
+    types = rng.integers(low=0, high=3, size=size * 2, dtype=np.int8)
+    return b, c, indices, types
 
 
-def run_test(size, step, n_iter=100, print_output=False):
+def run_test(size, step, n_iter=5, print_output=False):
     shape = (step, size)
-    b, c, indices = rnd_complex(shape)
+    b, c, indices, types = rnd_complex(shape)
 
     start_cuda = time.time()
     a_cuda = add_conjugate_cuda(b, c, n_iter=n_iter, indices=indices)
     end_cuda = time.time()
 
     start_numba_cpu = time.time()
-    a_numba_cpu = add_conjugate_numba_cpu(b, c, n_iter=n_iter, indices=indices)
+    a_numba_cpu = add_conjugate_numba_cpu(b, c, n_iter=n_iter, indices=indices, types=types)
     end_numba_cpu = time.time()
 
     if print_output:
