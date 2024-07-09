@@ -13,6 +13,13 @@ CONST_IMPEDANCE = int(LoadGenType.const_impedance)
 def set_load_pu(load_pu: np.ndarray, p_array: np.ndarray, q_array: np.ndarray):
     load_pu[...] = (p_array + 1j * q_array) / BASE_POWER
 
+def get_load_pu(load_profile):
+    p_array = np.asfortranarray(load_profile["p_specified"])
+    q_array = np.asfortranarray(load_profile["q_specified"])
+    load_pu = np.empty(shape=p_array.shape, dtype=np.complex128, order="F")
+    set_load_pu(load_pu, p_array, q_array)
+    return load_pu
+
 
 def set_rhs_impl(rhs, load_pu, load_type, load_node, u, i_ref):
     rhs[...] = 0.0
