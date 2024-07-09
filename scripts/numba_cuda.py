@@ -37,19 +37,12 @@ def add_conjugate_cuda(b, c, indices, n_iter: int):
     return ad.copy_to_host()
 
 
-@numba.njit
+@numba.njit(parallel=True)
 def add_conjugate_numba_cpu(b, c, indices, n_iter: int):
     a = np.zeros_like(b)
     for _ in range(n_iter):
         for i, index in enumerate(indices):
             a[:, index] += b[:, i] + c[:, i].conjugate()
-    return a
-
-
-def add_conjugate_numpy(b, c, indices, n_iter: int):
-    a = np.zeros_like(b)
-    for _ in range(n_iter):
-        np.add.at(a, (slice(None), indices), b + c.conjugate())
     return a
 
 
@@ -81,21 +74,16 @@ def run_test(size, step, n_iter=100, print_output=False):
     a_numba_cpu = add_conjugate_numba_cpu(b, c, n_iter=n_iter, indices=indices)
     end_numba_cpu = time.time()
 
-    start_numpy = time.time()
-    a_numpy = add_conjugate_numpy(b, c, n_iter=n_iter, indices=indices)
-    end_numpy = time.time()
-
     if print_output:
         print(f"step: {step}, size: {size}")
         print(f"Time taken for CUDA: {end_cuda - start_cuda} seconds")
         print(f"Time taken for Numba CPU: {end_numba_cpu - start_numba_cpu} seconds")
-        print(f"Time taken for Numpy: {end_numpy - start_numpy} seconds")
-        diff = np.max(np.abs(a_cuda - a_numba_cpu) + np.abs(a_cuda - a_numpy) + np.abs(a_numba_cpu - a_numpy))
+        diff = np.max(np.abs(a_cuda - a_numba_cpu))
         print(f"Max diff: {diff}")
 
 
 if __name__ == "__main__":
+    numba.set_num_threads(4)
     run_test(size=10, step=10_000, print_output=False)
     run_test(size=100, step=100_000, print_output=True)
     run_test(size=10, step=1_000_000, print_output=True)
-    # abs, .imag, .real, complex(real=, imag=)
